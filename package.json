@@ -1,0 +1,13 @@
+{
+  "name": "loja-sintetica-protocolo-v11",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:unit": "node --test tests/unit.test.js",
+    "test:integration": "node --test tests/integration.test.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

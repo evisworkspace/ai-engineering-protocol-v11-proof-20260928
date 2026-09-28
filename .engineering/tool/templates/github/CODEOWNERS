@@ -1,0 +1,17 @@
+# ai-engineering @VERSION@ — a régua do projeto só muda com revisão de @OWNER@.
+# Ative "Require review from Code Owners" no ruleset do branch principal.
+# A última regra que corresponde a um arquivo prevalece.
+/.engineering/contract.json   @OWNER@
+/.engineering/project.json    @OWNER@
+/.engineering/protocol.json   @OWNER@
+/.engineering/journeys/       @OWNER@
+/.engineering/work/           @OWNER@
+/.engineering/decisions/      @OWNER@
+/.engineering/tool/           @OWNER@
+/tests/journeys/              @OWNER@
+/scripts/operacao/            @OWNER@
+/playwright.config.*          @OWNER@
+/.github/                     @OWNER@
+/AGENTS.md                    @OWNER@
+/ENGINEERING.md               @OWNER@
+@ALL@

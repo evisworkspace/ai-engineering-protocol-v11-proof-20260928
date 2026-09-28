@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "dimensions_required": {
+    "P0": [],
+    "P1": [
+      "funcional"
+    ],
+    "P2": [
+      "funcional",
+      "integracao",
+      "operacao",
+      "seguranca"
+    ],
+    "P3": [
+      "funcional",
+      "integracao",
+      "operacao",
+      "seguranca"
+    ]
+  },
+  "internal_layers_required": {
+    "P0": [],
+    "P1": [
+      "unit"
+    ],
+    "P2": [
+      "unit",
+      "integration",
+      "e2e"
+    ],
+    "P3": [
+      "unit",
+      "integration",
+      "e2e"
+    ]
+  },
+  "periodic_windows_hours": {
+    "cada_mudanca": 0,
+    "diaria": 26,
+    "semanal": 192
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "Loja sintética v1.1",
+    "purpose": "Provar as travas do protocolo com dados sintéticos",
+    "criticality": "P2",
+    "quality_priorities": []
+  },
+  "authorities": {
+    "code": {
+      "kind": "files",
+      "location": "this project"
+    },
+    "data": {
+      "kind": "declared",
+      "location": "none: dados sintéticos"
+    },
+    "secrets": {
+      "kind": "external",
+      "location": "operator-managed secret store; never commit values"
+    },
+    "decisions": {
+      "kind": "files",
+      "location": ".engineering/decisions/"
+    },
+    "state": {
+      "kind": "file",
+      "location": ".engineering/state.json"
+    },
+    "production": {
+      "kind": "declared",
+      "location": "none: sem publicação"
+    }
+  }
+}

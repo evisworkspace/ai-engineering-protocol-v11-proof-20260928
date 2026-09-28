@@ -1,0 +1,17 @@
+# ai-engineering 1.1.0 — a régua do projeto só muda com revisão de @evisworkspace.
+# Ative "Require review from Code Owners" no ruleset do branch principal.
+# A última regra que corresponde a um arquivo prevalece.
+/.engineering/contract.json   @evisworkspace
+/.engineering/project.json    @evisworkspace
+/.engineering/protocol.json   @evisworkspace
+/.engineering/journeys/       @evisworkspace
+/.engineering/work/           @evisworkspace
+/.engineering/decisions/      @evisworkspace
+/.engineering/tool/           @evisworkspace
+/tests/journeys/              @evisworkspace
+/scripts/operacao/            @evisworkspace
+/playwright.config.*          @evisworkspace
+/.github/                     @evisworkspace
+/AGENTS.md                    @evisworkspace
+/ENGINEERING.md               @evisworkspace
+*                             @evisworkspace

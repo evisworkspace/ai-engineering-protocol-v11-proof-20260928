@@ -1,0 +1,9 @@
+node_modules/
+test-results/
+playwright-report/
+jornadas.json
+pos-deploy.json
+resultados-periodicos.json
+evidencias/
+RELATORIO-*.md
+portao-*.json

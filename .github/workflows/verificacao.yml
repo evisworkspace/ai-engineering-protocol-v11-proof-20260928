@@ -1,0 +1,258 @@
+# ai-engineering 1.1.0 — verificação do sistema (gerado por `ai-engineering github setup`).
+# Duas perguntas separadas:
+#   pode-integrar  (check obrigatório no ruleset): a mudança pode entrar sem quebrar o que já passava?
+#   pode-liberar   (só no branch principal): esta versão está comprovada para ir a produção?
+# Adapte apenas os comandos marcados com ADAPTAR. Os portões usam a régua já aprovada
+# no branch principal (.engineering/tool); a identidade da IA não pode alterar este arquivo.
+name: verificacao
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: verificacao-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: detect
+        # ADAPTAR: como saber se o projeto já tem testes unitários.
+        run: |
+          if [ -f package.json ] && jq -e '.scripts["test:unit"]' package.json > /dev/null; then echo "configured=true" >> "$GITHUB_OUTPUT"; else echo "configured=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.detect.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: run
+        if: steps.detect.outputs.configured == 'true'
+        run: npm ci && npm run test:unit   # ADAPTAR
+      - id: result
+        if: always()
+        env:
+          CONFIGURED: ${{ steps.detect.outputs.configured }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          if [ "$CONFIGURED" != true ]; then s=not_configured; elif [ "$OUTCOME" = success ]; then s=success; else s=failure; fi
+          echo "status=$s" >> "$GITHUB_OUTPUT"
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: detect
+        # ADAPTAR: testes de integração usam banco/serviços descartáveis, nunca produção.
+        run: |
+          if [ -f package.json ] && jq -e '.scripts["test:integration"]' package.json > /dev/null; then echo "configured=true" >> "$GITHUB_OUTPUT"; else echo "configured=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.detect.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: run
+        if: steps.detect.outputs.configured == 'true'
+        run: npm ci && npm run test:integration   # ADAPTAR
+      - id: result
+        if: always()
+        env:
+          CONFIGURED: ${{ steps.detect.outputs.configured }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          if [ "$CONFIGURED" != true ]; then s=not_configured; elif [ "$OUTCOME" = success ]; then s=success; else s=failure; fi
+          echo "status=$s" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: detect
+        # Jornadas executáveis: um robô usa o sistema como uma pessoa e grava vídeo.
+        run: |
+          if [ -f package.json ] && [ -d tests/journeys ] && ls playwright.config.* > /dev/null 2>&1; then echo "configured=true" >> "$GITHUB_OUTPUT"; else echo "configured=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.detect.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: run
+        if: steps.detect.outputs.configured == 'true'
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: jornadas.json
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test tests/journeys --reporter=json   # ADAPTAR
+      - if: always() && steps.detect.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jornadas
+          path: |
+            jornadas.json
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30
+      - id: result
+        if: always()
+        env:
+          CONFIGURED: ${{ steps.detect.outputs.configured }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          if [ "$CONFIGURED" != true ]; then s=not_configured; elif [ "$OUTCOME" = success ]; then s=success; else s=failure; fi
+          echo "status=$s" >> "$GITHUB_OUTPUT"
+
+  pode-integrar:
+    name: pode-integrar
+    if: always()
+    needs: [unit, integration, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: base
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: jornadas
+          path: resultados
+      - name: Linha de base (último resultado do branch principal)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: main
+        run: |
+          mkdir -p linha-de-base
+          run_id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow verificacao.yml --branch "$BRANCH" --event push --status completed -L 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
+          if [ -n "$run_id" ]; then gh run download "$run_id" -R "$GITHUB_REPOSITORY" -n portao-integracao -D linha-de-base || true; fi
+      - name: Qual régua usar
+        id: regua
+        run: |
+          if [ -f base/.engineering/tool/bin/ai-engineering.js ]; then
+            echo "dir=base" >> "$GITHUB_OUTPUT"
+            if ! diff -r base/.engineering/tool head/.engineering/tool > /dev/null 2>&1; then
+              echo "### ⚠ Este pedido altera a régua (.engineering/tool). O portão usa a versão já aprovada no branch principal; revise a mudança antes de aprovar." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "dir=head" >> "$GITHUB_OUTPUT"
+            echo "### ⚠ Primeira instalação da régua: ainda não existe versão aprovada no branch principal. Revise a instalação antes de aprovar." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Portão de integração
+        env:
+          TOOL_DIR: ${{ steps.regua.outputs.dir }}
+          UNIT: ${{ needs.unit.outputs.status || 'failure' }}
+          INTEGRATION: ${{ needs.integration.outputs.status || 'failure' }}
+          E2E: ${{ needs.e2e.outputs.status || 'failure' }}
+        run: |
+          set +e
+          args=(gate --mode integration --dir head --base-dir base --layer "unit=$UNIT" --layer "integration=$INTEGRATION" --layer "e2e=$E2E" --out RELATORIO.md --json-out portao.json)
+          [ -f resultados/jornadas.json ] && args+=(--results resultados/jornadas.json)
+          [ -f linha-de-base/portao.json ] && args+=(--baseline linha-de-base/portao.json)
+          node "$TOOL_DIR/.engineering/tool/bin/ai-engineering.js" "${args[@]}"
+          code=$?
+          [ -f RELATORIO.md ] && cat RELATORIO.md >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portao-integracao
+          path: |
+            portao.json
+            RELATORIO.md
+          if-no-files-found: warn
+
+  pode-liberar:
+    name: pode-liberar
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [unit, integration, e2e]
+    runs-on: ubuntu-latest
+    outputs:
+      veredito: ${{ steps.gate.outputs.veredito }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: head
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: jornadas
+          path: resultados
+      - name: Última execução periódica (operação)
+        id: periodic
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: main
+        run: |
+          mkdir -p periodico
+          run_json=$(gh run list -R "$GITHUB_REPOSITORY" --workflow operacao.yml --branch "$BRANCH" -L 1 --json databaseId,status,conclusion -q '.[0]' 2>/dev/null || true)
+          run_id=$(printf '%s' "$run_json" | jq -r '.databaseId // empty')
+          conclusion=$(printf '%s' "$run_json" | jq -r '.conclusion // empty')
+          if [ -n "$run_id" ] && [ "$conclusion" = success ]; then
+            gh run download "$run_id" -R "$GITHUB_REPOSITORY" -n resultados-operacao -D periodico || true
+            echo "url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$conclusion" = success ] && [ -f periodico/resultados-periodicos.json ]; then echo "status=success" >> "$GITHUB_OUTPUT"; elif [ -n "$run_id" ]; then echo "status=failure" >> "$GITHUB_OUTPUT"; else echo "status=not_run" >> "$GITHUB_OUTPUT"; fi
+      - name: Portão de liberação
+        id: gate
+        env:
+          UNIT: ${{ needs.unit.outputs.status || 'failure' }}
+          INTEGRATION: ${{ needs.integration.outputs.status || 'failure' }}
+          E2E: ${{ needs.e2e.outputs.status || 'failure' }}
+          PERIODIC_URL: ${{ steps.periodic.outputs.url }}
+          OPERATION: ${{ steps.periodic.outputs.status || 'not_run' }}
+        run: |
+          set +e
+          args=(gate --mode release --dir head --layer "unit=$UNIT" --layer "integration=$INTEGRATION" --layer "e2e=$E2E" --layer "operation=$OPERATION" --out RELATORIO.md --json-out portao.json)
+          [ -f resultados/jornadas.json ] && args+=(--results resultados/jornadas.json)
+          [ -f periodico/resultados-periodicos.json ] && args+=(--periodic "periodico/resultados-periodicos.json=$PERIODIC_URL")
+          node head/.engineering/tool/bin/ai-engineering.js "${args[@]}"
+          code=$?
+          case $code in 0) v=LIBERAVEL ;; 3) v=PRONTO_PARA_ENSAIO ;; 1) v=NAO_LIBERAVEL ;; *) v=ERRO ;; esac
+          echo "veredito=$v" >> "$GITHUB_OUTPUT"
+          [ -f RELATORIO.md ] && cat RELATORIO.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -eq 3 ]; then exit 0; fi
+          exit $code
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portao-liberacao
+          path: |
+            portao.json
+            RELATORIO.md
+          if-no-files-found: warn
+
+  # Publicação: só dispare produção a partir daqui, nunca por push direto.
+  # publicar:
+  #   needs: pode-liberar
+  #   if: needs.pode-liberar.outputs.veredito == 'LIBERAVEL'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - run: echo "ADAPTAR: comando de publicação em produção"

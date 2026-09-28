@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "bootstrap",
+  "current_checkpoint": null,
+  "active_work": null,
+  "next_action": "Frame the first work package, confirm authorities, and record scope authorization before implementation.",
+  "blocked_by": [],
+  "prohibited": [
+    "Do not implement outside authorized scope.",
+    "Do not infer acceptance from evidence.",
+    "Do not approve, homologate or retire journeys on the owner's behalf.",
+    "Do not implement behavior before its journey is approved by the owner."
+  ],
+  "last_verified_commit": null
+}

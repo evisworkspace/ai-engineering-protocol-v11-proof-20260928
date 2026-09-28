@@ -1,0 +1,33 @@
+# ai-engineering @VERSION@ — jornadas de operação ("e se der errado?").
+# Rodam por agenda no branch principal, no ambiente de ensaio: restaurar backup, alerta
+# disparar, voltar à versão anterior. O portão de liberação aceita a última prova dentro
+# da validade de .engineering/contract.json (diaria = 26h, semanal = 192h).
+name: operacao
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  operacao:
+    name: operacao
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Jornadas periódicas
+        # ADAPTAR: gere resultados-periodicos.json no formato normalizado, por exemplo
+        # {"generated_at":"2026-09-28T06:17:00Z","journeys":{"J-0005":{"result":"pass","at":"2026-09-28T06:20:00Z","reason":"","evidence":"evidencias/J-0005.log"}}}
+        # Arquivos de evidência ficam em evidencias/ (caminhos relativos a este diretório).
+        run: ./scripts/operacao/run.sh > resultados-periodicos.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-operacao
+          path: |
+            resultados-periodicos.json
+            evidencias/
+          if-no-files-found: warn
+          retention-days: 30

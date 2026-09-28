@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "WP-NEW-001",
+  "status": "proposed",
+  "project_criticality": "P1",
+  "change_impact": "C1",
+  "modifiers": [],
+  "objective": "",
+  "scope": [],
+  "non_goals": [],
+  "journeys_affected": [],
+  "no_behavior_change": null,
+  "acceptance": [],
+  "evidence_required": [],
+  "acceptance_mode": "explicit_owner",
+  "authorization_record": null,
+  "architecture_impact": "none",
+  "data_migration": null,
+  "recovery": null,
+  "decision_refs": [],
+  "evidence": [],
+  "acceptance_record": null
+}

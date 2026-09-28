@@ -1,0 +1,37 @@
+# ai-engineering 1.1.0 — prova depois da publicação.
+# Roda contra o endereço publicado apenas as jornadas marcadas @pos-deploy, que precisam
+# ser seguras para produção (sem vendas, e-mails ou dados reais). Falha = alerta e
+# decisão do dono de voltar à versão anterior.
+name: pos-deploy
+on:
+  deployment_status:
+permissions:
+  contents: read
+jobs:
+  pos-deploy:
+    name: pos-deploy
+    # ADAPTAR: nome do ambiente de produção no seu provedor.
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - env:
+          BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          PLAYWRIGHT_JSON_OUTPUT_FILE: pos-deploy.json
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test tests/journeys --grep @pos-deploy --reporter=json   # ADAPTAR
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-pos-deploy
+          path: |
+            pos-deploy.json
+            test-results/
+          if-no-files-found: warn
